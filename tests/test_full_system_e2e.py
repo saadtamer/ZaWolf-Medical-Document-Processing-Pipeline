@@ -1,9 +1,11 @@
+import sys
 from pathlib import Path
 
-from src.pipeline import ProcessingPipeline
-
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.pipeline import ProcessingPipeline
 
 TEST_FILES = {
     "digital_pdf": PROJECT_ROOT / "data" / "processed" / "digital_pdf_test_5_pages.pdf",
