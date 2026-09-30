@@ -12,6 +12,7 @@ class LocalLLM:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.session = requests.Session()
 
     def generate(self, prompt, system_prompt=None):
         print("\n===== LLM DEBUG =====")
@@ -29,15 +30,16 @@ class LocalLLM:
             "think": False,
             "options": {
                 "num_ctx": 16384,
-                "num_predict": 4096,
-                "temperature": 0.0
+                "num_predict": 2048,
+                "temperature": 0.0,
+                "num_thread": 6
             }
         }
 
         if system_prompt:
             payload["system"] = system_prompt
 
-        response = requests.post(
+        response = self.session.post(
             f"{self.base_url}/api/generate",
             json=payload,
             timeout=self.timeout

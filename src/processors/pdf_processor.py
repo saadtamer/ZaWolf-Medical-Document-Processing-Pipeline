@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import fitz
+import pymupdf as fitz
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from config.settings import MAX_BATCH_TEXT_SIZE
