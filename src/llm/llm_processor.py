@@ -23,217 +23,22 @@ class LLMProcessor:
         self.guard = ExtractionGuard()
 
     def build_prompt(self, text):
+        return f"""You are a clinical document information extraction system. Extract ONLY explicitly stated facts into the exact JSON schema below.
 
-        return f"""
-You are a medical document information extraction system.
+STRICT CONSTRAINTS:
+- NEVER hallucinate, invent, or extrapolate unmentioned entities.
+- If an entity or attribute is not explicitly in the text, return null (or [] for arrays).
+- Never invent patient names, doctors, locations, appointments, diagnoses, or invoices.
+- Dates: Use YYYY-MM-DD only when day, month, and year are clearly given; otherwise null. Do not convert durations (e.g. "لمدة أسبوع") into dates.
+- Numbers: Preserve original values accurately.
 
-Your task is to extract ONLY information explicitly present in the input text.
-
-STRICT RULES:
-
-- Never invent information.
-- Never guess missing information.
-- Never infer information from context.
-- Never calculate missing values.
-- Never create entities that are not explicitly supported by the text.
-- If information is unclear, return null.
-- If a table has no supported records, return [].
-- Preserve medication names exactly when possible.
-- Preserve dosage and frequency information.
-- Preserve numbers exactly when possible.
-- Do not hallucinate patient information.
-- Do not hallucinate doctors, locations, appointments, services, invoices, or other database entities.
-
-MEDICATION EXTRACTION RULES:
-
-- Medication names are extremely important.
-- Extract every explicitly written medication as a separate record.
-- Preserve medication names exactly as written.
-- Do not translate medication names.
-- Do not correct medication names.
-- Do not invent medication names.
-- Do not merge different medications.
-
-MEDICATION BLOCK RULE:
-
-A medication starts when a medication name is explicitly written.
-
-All text appearing after that medication name belongs to the same medication
-until the next explicitly written medication name begins.
-
-Example:
-
-R1 Lubricant Eye Drops E.D.
-قطعة ٣ مرات يوميا لمدة أسبوع
-R1 Analgesic Drug TAB.
-قرص بعد الأكل مرцин يومياً
-R1 Antibiotic Eye Ointment E.O.
-مِسَام ماءِ الْهَمَرِ
-
-This represents THREE medication records.
-
-Record 1:
-
-{{
-    "medication_name": "R1 Lubricant Eye Drops E.D.",
-    "dosage": "قطعة",
-    "frequency": "٣ مرات يوميا"
-}}
-
-Record 2:
-
-{{
-    "medication_name": "R1 Analgesic Drug TAB.",
-    "dosage": "قرص",
-    "frequency": "بعد الأكل مرцин يومياً"
-}}
-
-Record 3:
-
-{{
-    "medication_name": "R1 Antibiotic Eye Ointment E.O.",
-    "dosage": "مِسَام ماءِ الْهَمَرِ",
-    "frequency": null
-}}
-
-MEDICATION NAME RULES:
-
-- If the medication name is explicitly visible in the input,
-  medication_name must not be null.
-- A medication name may contain English letters.
-- A medication name may contain Arabic letters.
-- A medication name may contain numbers.
-- A medication name may contain abbreviations.
-- A medication name may contain dots.
-- A medication name may contain spaces.
-- Preserve the original medication name.
-- Do not translate medication names.
-- Do not normalize medication names.
-- Do not replace a medication name with dosage.
-- Do not replace a medication name with frequency.
-
-DOSAGE RULES:
-
-- Extract dosage from the text immediately associated with the medication.
-- Dosage describes the amount, form, or unit of administration.
-- Examples of dosage include:
-  - قرص
-  - كبسولة
-  - قطعة
-  - مل
-  - نقطة
-  - بخة
-  - مرهم
-  - حقنة
-  - tablet
-  - tab
-  - capsule
-  - ml
-- Do not invent a dosage.
-- If dosage is not explicitly available, return null.
-- Do not use dosage information from another medication.
-
-FREQUENCY RULES:
-
-- Extract frequency exactly from the text associated with the medication.
-- Examples include:
-  - مرة يومياً
-  - مرتين يومياً
-  - ٣ مرات يوميا
-  - كل ٨ ساعات
-  - بعد الأكل
-  - قبل الأكل
-  - صباحاً
-  - مساءً
-- Do not invent a frequency.
-- Do not calculate a frequency.
-- Do not convert duration into frequency.
-- If frequency is not explicitly available, return null.
-- Do not use frequency information from another medication.
-
-MEDICATION DURATION:
-
-- A duration such as:
-  "لمدة أسبوع"
-  "لمدة 5 أيام"
-  "for one week"
-  "for 5 days"
-
-is NOT an end_date.
-
-- Do not calculate start_date.
-- Do not calculate end_date.
-- Do not convert medication duration into dates.
-- Keep medication duration only if there is a suitable field for it.
-- Otherwise do not invent a database field.
-
-IMPORTANT MEDICATION ASSOCIATION RULE:
-
-For each medication:
-
-1. Find the medication name.
-2. Read the text immediately following it.
-3. Stop when the next medication name begins.
-4. Use only this block to extract dosage and frequency.
-5. Never take dosage or frequency from another medication block.
-
-Do NOT set dosage and frequency to null when they are explicitly present
-in the medication block.
-
-Do NOT move dosage or frequency from one medication to another.
-
-DATE RULES:
-
-- Extract dates exactly as they appear in the document.
-- Never invent, correct, reinterpret, or calculate a date.
-- Never convert an unclear date into a different date.
-- If a date is unclear, incomplete, ambiguous, or cannot be confidently normalized, return null.
-- Preserve the original date information when possible.
-- Convert a date to YYYY-MM-DD only when the day, month, and year are explicitly and clearly available.
-- If only part of a date is available, return null.
-- Do not infer the year from surrounding text.
-- Do not infer the day or month from medication duration.
-- Do not calculate end_date from start_date.
-- If an end date is not explicitly present, return null.
-
-Examples:
-
-"2023-10-10" -> "2023-10-10"
-
-"10/10/2023" -> "2023-10-10"
-
-"١٠/١٠/٢٠٢٣" -> "2023-10-10"
-
-"١٩٦٩/١٢/١" -> null if the date is not clearly identified as a medical date.
-
-"لمدة أسبوع" -> do NOT create an end_date.
-
-"3 مرات يومياً" -> this is frequency, NOT a date.
-
-IMPORTANT:
-
-A number appearing in a medical document is NOT automatically a date.
-
-For example:
-
-"رقم أشرف إدريس صفية عدد ١٩٦٩/١٢/١"
-
-must NOT automatically become:
-
-"1969-12-01"
-
-unless the text clearly identifies it as a medical date.
+MEDICATION EXTRACTION:
+- Extract each explicitly named medication as a separate record. Preserve exact medication_name, dosage, and frequency.
+- Only associate dosage and frequency appearing in the text immediately following the medication name.
+- Do not mix attributes between different medications.
 
 OUTPUT RULES:
-
-- Return ONLY valid JSON.
-- Do not return Markdown.
-- Do not return explanations.
-- Do not return comments.
-- Do not wrap the JSON in ```.
-
-The JSON must contain exactly these top-level arrays:
-
+Return ONLY valid JSON (no markdown fences, no conversational text, no comments). Schema:
 {{
     "locations": [],
     "staff": [],
@@ -256,10 +61,9 @@ The JSON must contain exactly these top-level arrays:
     "source_documents": []
 }}
 
-Each record must contain only fields supported by the database schema.
+Each entity must contain only schema-supported fields (e.g. medications: medication_name, dosage, frequency; vitals: blood_pressure, heart_rate, temperature, weight; locations: name, address, phone).
 
 INPUT TEXT:
-
 {text}
 """
 

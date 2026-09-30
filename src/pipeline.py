@@ -27,7 +27,7 @@ from config.settings import PROCESSED_DIR
 
 class ProcessingPipeline:
 
-    def __init__(self, ocr_engine="qwen"):
+    def __init__(self, ocr_engine="auto"):
         self.llm_processor = LLMProcessor()
         self.validator = DataValidator()
         self.database_mapper = DatabaseMapper()
@@ -68,6 +68,11 @@ class ProcessingPipeline:
                 "csv_pipeline",
             ]:
                 return self._process_structured_file(
+                    file_info
+                )
+
+            if route == "word_pipeline":
+                return self._process_word_file(
                     file_info
                 )
 
@@ -398,6 +403,101 @@ class ProcessingPipeline:
             text_parts
         )
 
+    def _process_word_file(
+        self,
+        file_info,
+    ):
+        file_path = Path(
+            file_info["file_path"]
+        )
+
+        merged_data = (
+            self._create_empty_data()
+        )
+
+        batch_count = 0
+        text_parts = []
+
+        for batch in process_word(file_path):
+            batch_text = "\n\n".join(
+                chunk["text"]
+                for chunk in batch
+                if isinstance(chunk, dict) and chunk.get("text")
+            )
+
+            if not batch_text.strip():
+                continue
+
+            batch_count += 1
+            text_parts.append(batch_text)
+
+            batch_result = self.process_text(
+                batch_text
+            )
+
+            if batch_result["status"] != "valid":
+                return {
+                    "status": batch_result["status"],
+                    "data": None,
+                    "source_text": "\n\n".join(text_parts),
+                    "ocr_text": "",
+                    "source_metadata": {},
+                    "errors": [
+                        {
+                            "type": "word_batch_error",
+                            "batch": batch_count,
+                            "errors": batch_result.get("errors", []),
+                        }
+                    ],
+                }
+
+            merged_data = self._merge_extracted_data(
+                merged_data,
+                batch_result["data"],
+            )
+
+        if batch_count == 0:
+            return {
+                "status": "invalid",
+                "data": None,
+                "source_text": "",
+                "ocr_text": "",
+                "source_metadata": {},
+                "errors": [
+                    {
+                        "type": "empty_word_document",
+                        "message": "No text extracted from Word document.",
+                    }
+                ],
+            }
+
+        validation_result = self.validator.validate(
+            merged_data
+        )
+
+        if not validation_result["valid"]:
+            return {
+                "status": "invalid",
+                "data": validation_result.get("data"),
+                "source_text": "\n\n".join(text_parts),
+                "ocr_text": "",
+                "source_metadata": {},
+                "errors": validation_result.get("errors", []),
+            }
+
+        return {
+            "status": "valid",
+            "data": validation_result["data"],
+            "source_text": "\n\n".join(text_parts),
+            "ocr_text": "",
+            "source_metadata": {
+                "file_name": file_path.name,
+                "route": "word_pipeline",
+                "ocr_engine": None,
+            },
+            "errors": [],
+        }
+
     def _process_structured_file(
         self,
         file_info,
@@ -570,6 +670,7 @@ class ProcessingPipeline:
                     self.ocr_router.process(
                         image_path,
                         engine=self.ocr_engine,
+                        is_scanned_pdf=False,
                     )
                 )
 
@@ -579,6 +680,7 @@ class ProcessingPipeline:
                     self.ocr_router.process(
                         file_path,
                         engine=self.ocr_engine,
+                        is_scanned_pdf=False,
                     )
                 )
 
@@ -588,6 +690,7 @@ class ProcessingPipeline:
                 self.ocr_router.process(
                     processed_image,
                     engine=self.ocr_engine,
+                    is_scanned_pdf=False,
                 )
             )
 
@@ -777,6 +880,7 @@ class ProcessingPipeline:
                 self.ocr_router.process(
                     page["image_path"],
                     engine=self.ocr_engine,
+                    is_scanned_pdf=True,
                 )
             )
 
