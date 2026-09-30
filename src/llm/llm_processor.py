@@ -283,6 +283,7 @@ INPUT TEXT:
             return json.loads(response_text)
 
         except json.JSONDecodeError as error:
+
             raise ValueError(
                 f"LLM returned invalid JSON: {error}"
             ) from error
