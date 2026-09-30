@@ -479,3 +479,7 @@ INPUT TEXT:
         )
 
         return validated.model_dump()
+
+    def close(self):
+        if hasattr(self, "llm") and self.llm:
+            self.llm.close()

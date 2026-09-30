@@ -1,5 +1,19 @@
 import json
+import os
 import requests
+import requests.adapters
+
+
+def get_optimal_thread_count():
+    try:
+        import psutil
+        physical = psutil.cpu_count(logical=False)
+        if physical and physical > 0:
+            return physical
+    except Exception:
+        pass
+    logical = os.cpu_count() or 4
+    return max(1, logical // 2 if logical > 2 else logical)
 
 
 class LocalLLM:
@@ -12,11 +26,43 @@ class LocalLLM:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
-        self.session = requests.Session()
+        self._session = None
+        self.threads = get_optimal_thread_count()
+
+    def _get_session(self):
+        if self._session is None:
+            self._session = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(
+                pool_connections=1,
+                pool_maxsize=2,
+                max_retries=1
+            )
+            self._session.mount("http://", adapter)
+            self._session.mount("https://", adapter)
+        return self._session
+
+    def close(self):
+        """Explicitly closes the HTTP session and frees socket handles immediately."""
+        if self._session is not None:
+            try:
+                self._session.close()
+            except Exception:
+                pass
+            self._session = None
+
+    def __del__(self):
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def generate(self, prompt, system_prompt=None):
         print("\n===== LLM DEBUG =====")
         print(f"Model: {self.model}")
+        print(f"Threads: {self.threads} (auto-detected)")
         print(f"Prompt length: {len(prompt):,} chars")
 
         if system_prompt:
@@ -32,14 +78,14 @@ class LocalLLM:
                 "num_ctx": 16384,
                 "num_predict": 2048,
                 "temperature": 0.0,
-                "num_thread": 6
+                "num_thread": self.threads
             }
         }
 
         if system_prompt:
             payload["system"] = system_prompt
 
-        response = self.session.post(
+        response = self._get_session().post(
             f"{self.base_url}/api/generate",
             json=payload,
             timeout=self.timeout

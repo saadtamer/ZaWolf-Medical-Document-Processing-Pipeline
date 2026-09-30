@@ -138,6 +138,13 @@ class ProcessingPipeline:
                 ],
             }
 
+        finally:
+            if hasattr(self, "llm_processor") and self.llm_processor:
+                try:
+                    self.llm_processor.close()
+                except Exception:
+                    pass
+
     def process_and_save_file(self, file_path):
 
         result = self.process_file(
