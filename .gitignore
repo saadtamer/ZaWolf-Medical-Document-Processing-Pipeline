@@ -2,13 +2,23 @@
 .env
 __pycache__/
 *.pyc
+.pytest_cache/
+*.pyo
 .ipynb_checkpoints/
 
+# Runtime Data Directories
 data/input/
 data/processed/
 data/output/
 
+# Internal documentation and heavy assets (not pushed per project policy)
+docs/
+real_test/
+
+# Models and logs
 models/
 logs/
 
+# IDE Configuration
 .vscode/
+.idea/

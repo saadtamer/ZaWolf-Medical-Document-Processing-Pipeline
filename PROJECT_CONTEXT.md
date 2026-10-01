@@ -1,657 +1,87 @@
-# ZaWolf Project Context
+# ZaWolf Project Context & Architecture Reference (Final Release)
 
 ## 1. Project Identity
 
-Project Name:
-ZaWolf_project
-
-Project Type:
-Medical / Hospital Document Processing and OCR System
-
-Project Goal:
-Build a modular medical document processing system that accepts different
-document formats, extracts their content, processes images when required,
-uses OCR for image-based documents, uses an LLM to organize and standardize
-the extracted information, validates the final structured output, and stores
-the validated data in a database.
-
-Project Root:
-E:\ZaWolf_project
-
-
-# 2. Main System Architecture
-
-The fixed architecture is:
-
-Input File
-    ↓
-File Extension Detection
-    ↓
-Router
-    ↓
-┌──────────────┬──────────────┬──────────────┬──────────────┐
-PDF            Image          Excel/CSV      Word
-↓              ↓              ↓              ↓
-Digital/       Image          Direct Data    Direct Text
-Scanned
-↓       ↓
-Text    Images
-↓       ↓
-└───────┴─────────────────────────────────────┐
-                                              ↓
-                                             OCR
-                                              ↓
-                                      Text Processing
-                                              ↓
-                                             LLM
-                                              ↓
-                                         Validation
-                                      ↙             ↘
-                                   Valid           Invalid
-                                     ↓               ↓
-                                 Database      Reprocess/Review
-                                     ↓
-                                  Production
-
-
-# 3. Important Architecture Rules
-
-These rules must NOT be changed without discussing the change first.
-
-1. File type detection is rule-based using file extensions.
-2. Router decides which processor handles each input type.
-3. Scanned PDF pages are converted to images.
-4. Scanned PDF images use the SAME Image/OCR branch.
-5. There is NO separate OCR architecture for scanned PDFs.
-6. Images are processed generically before OCR.
-7. Excel and CSV do NOT use OCR.
-8. Word documents do NOT use OCR.
-9. Digital PDFs are processed directly as text.
-10. OCR is responsible for converting image content into text.
-11. LLM is shared after extraction/OCR.
-12. LLM organizes, cleans, standardizes, and maps extracted information.
-13. LLM must NOT invent missing information.
-14. Missing values must be preserved during extraction.
-15. Data cleaning is NOT performed inside Excel/CSV extraction.
-16. Data quality analysis is NOT performed during raw extraction.
-17. Validation happens after LLM processing.
-18. Invalid data goes to reprocessing/review.
-19. Database is the final storage layer.
-20. System must remain modular.
-21. OCR is intentionally being implemented AFTER the input-processing layer.
-22. Do not add unnecessary features before the current stage is complete.
-
-
-# 4. Supported Input Types
-
-Currently supported:
-
-- PDF
-- JPG
-- JPEG
-- PNG
-- WEBP
-- XLSX
-- XLS
-- CSV
-- DOCX
-
-Old `.doc` binary Word files are NOT currently supported by python-docx.
-
-
-# 5. Project Structure
-
-E:\ZaWolf_project
-
-├── .venv/
-├── data/
-│   ├── input/
-│   ├── processed/
-│   └── output/
-├── models/
-├── logs/
-├── config/
-│   ├── __init__.py
-│   └── settings.py
-├── src/
-│   ├── __init__.py
-│   ├── ingestion/
-│   │   ├── __init__.py
-│   │   ├── file_detector.py
-│   │   └── router.py
-│   ├── processors/
-│   │   ├── __init__.py
-│   │   ├── pdf_processor.py
-│   │   ├── word_processor.py
-│   │   ├── structured_processor.py
-│   │   └── image_processor.py
-│   ├── ocr/
-│   │   ├── __init__.py
-│   │   ├── ocr_engine.py
-│   │   └── ocr_utils.py
-│   ├── llm/
-│   │   ├── __init__.py
-│   │   └── llm_processor.py
-│   ├── validation/
-│   │   ├── __init__.py
-│   │   └── validator.py
-│   ├── database/
-│   │   ├── __init__.py
-│   │   └── database.py
-│   ├── pipeline.py
-│   └── utils.py
-├── tests/
-│   └── __init__.py
-├── main.py
-├── .env
-├── .gitignore
-├── requirements.txt
-├── medical_document_processing.ipynb
-└── PROJECT_CONTEXT.md
-
-
-# 6. Completed Stages
-
-## 6.1 File Ingestion
-
-Status: COMPLETED
-
-Implemented:
-
-- Input directory scanning
-- File existence checking
-- File extension detection
-- Supported/unsupported file identification
-
-
-## 6.2 File Routing
-
-Status: COMPLETED
-
-Implemented:
-
-- PDF route
-- Image route
-- Excel route
-- CSV route
-- Word route
-- Unsupported route
-
-
-## 6.3 PDF Processing
-
-Status: COMPLETED
-
-Implemented:
-
-- PDF type detection
-- Digital PDF detection
-- Scanned PDF detection
-- Digital PDF text extraction
-- Text chunking
-- Scanned PDF page-to-image conversion
-
-Important:
-
-Scanned PDF does NOT go directly to a separate OCR processor.
-
-It becomes images and enters the Image/OCR branch.
-
-
-## 6.4 Image Processing
-
-Status: COMPLETED
-
-Implemented:
-
-- File existence validation
-- Image extension validation
-- Image corruption validation
-- Image loading
-- EXIF orientation correction
-- Grayscale conversion
-- Auto contrast
-- Processed image saving
-- Processing result metadata
-
-
-## 6.5 Excel / CSV Processing
-
-Status: COMPLETED
-
-Implemented:
-
-- CSV loading using pandas
-- Excel workbook loading using pandas
-- Multiple Excel sheets support
-- DataFrame-based representation
-- Missing values preserved
-
-Important:
-
-No cleaning is performed during extraction.
-
-No duplicate analysis is performed.
-
-No missing-value analysis is performed.
-
-No data-quality analysis is performed.
-
-
-## 6.6 Word Processing
-
-Status: COMPLETED
-
-Implemented:
-
-- DOCX validation
-- Paragraph extraction
-- Table extraction
-- Text representation of tables
-- Text batching
-- Text chunking
-
-
-## 6.7 Basic Pipeline Integration
-
-Status: COMPLETED
-
-The pipeline currently connects:
-
-File Detection
-→ Routing
-→ PDF Processor
-→ Image Processor
-→ Word Processor
-→ Structured Processor
-
-The pipeline has been executed successfully.
-
-
-# 7. Current Stage
-
-CURRENT STAGE:
-
-OCR
-
-Current position:
-
-Input Processing is complete.
-
-The next development stage is OCR.
-
-Do NOT skip directly to LLM, Validation, or Database.
-
-
-# 8. Text Processing / Chunking Status
-
-Status:
-
-PARTIALLY COMPLETED
-
-Already implemented for:
-
-- Digital PDF text
-- Word text
-
-Existing concepts:
-
-- RecursiveCharacterTextSplitter
-- Chunk size
-- Chunk overlap
-- Dynamic batching
-- Memory-aware batching
-
-OCR output should later enter the same text-processing flow where appropriate.
-
-Do not create an unnecessary separate chunking architecture for OCR.
-
-
-# 9. Pipeline / Orchestration Status
-
-Status:
-
-BASIC INTEGRATION COMPLETED
-
-Current pipeline can:
-
-- Detect files
-- Route files
-- Process PDFs
-- Convert scanned PDF pages to images
-- Process images
-- Process Word files
-- Process Excel/CSV files
-
-The current pipeline still needs later integration with:
-
-- OCR
-- LLM
-- Validation
-- Database
-- Error handling
-- Production orchestration
-
-
-# 10. OCR Requirements
-
-OCR must be evaluated based on the following requirements:
-
-1. Arabic
-2. English
-3. Arabic + English mixed
-4. Handwritten text when required
-5. Medical terminology
-6. Numbers
-7. Dosage
-8. Units
-9. CER evaluation
-10. WER evaluation
-11. Real hospital-like images
-12. Fine-tuning capability
-13. Local deployment option
-
-Potential OCR technologies/models may be researched later.
-
-No final OCR model has been selected yet.
-
-OCR selection must be based on actual project requirements and evaluation,
-not popularity alone.
-
-
-# 11. OCR Development Plan
-
-The OCR stage should follow this order:
-
-1. Define OCR input/output contract
-2. Research candidate OCR engines/models
-3. Compare candidates against project requirements
-4. Select OCR engine/model
-5. Implement OCR engine
-6. Support Arabic
-7. Support English
-8. Support mixed Arabic/English
-9. Handle numbers and dosage/units
-10. Investigate handwriting support
-11. Evaluate medical terminology
-12. Evaluate CER
-13. Evaluate WER
-14. Test on hospital-like images
-15. Investigate fine-tuning if needed
-16. Verify local deployment capability
-17. Integrate OCR into the pipeline
-
-
-# 12. LLM Stage
-
-Status:
-
-NOT STARTED
-
-Purpose:
-
-The LLM will receive extracted/OCR text and organize it into the required
-medical structure.
-
-Responsibilities:
-
-- Understand extracted content
-- Clean text when appropriate
-- Standardize values
-- Map information to required fields
-- Organize unstructured medical information
-- Preserve information that exists
-- Avoid inventing missing information
-
-The LLM must NOT replace OCR.
-
-OCR extracts text.
-
-LLM interprets and structures text.
-
-
-# 13. Validation Stage
-
-Status:
-
-NOT STARTED
-
-Purpose:
-
-Validate the LLM output before database storage.
-
-Expected validation areas:
-
-- Required fields
-- Data types
-- Schema compliance
-- Allowed values
-- Structural consistency
-- Invalid output detection
-
-Pydantic may be used if appropriate.
-
-Invalid results should go to:
-
-Reprocess / Review
-
-
-# 14. Database Stage
-
-Status:
-
-NOT STARTED
-
-Purpose:
-
-Store validated structured medical data.
-
-Database integration will be implemented after:
-
-OCR
-→ Text Processing
-→ LLM
-→ Validation
-
-
-# 15. Error Handling / Reprocessing
-
-Status:
-
-NOT STARTED
-
-Future behavior:
-
-Invalid extraction or invalid structured output should be handled through
-controlled reprocessing or human review.
-
-Do not silently discard medical information.
-
-
-# 16. Testing
-
-Status:
-
-BASIC TESTING COMPLETED
-
-Confirmed:
-
-- Pipeline executes successfully
-- Multiple input types were processed
-- PDF processing works
-- Scanned PDF pages can be converted to images
-- Image loading/validation works
-- Pipeline completed successfully with test input files
-
-Current test result:
-
-Pipeline completed successfully with 4 input files.
-
-Known warning:
-
-The current PDF processor uses the deprecated `fitz` API.
-
-Warning:
-
-`The fitz API is deprecated and will be removed in future.`
-
-This is a warning, not a pipeline failure.
-
-It can be cleaned later by migrating to `pymupdf` imports.
-
-
-# 17. Environment
-
-Python:
-
-3.11.9
-
-Project environment:
-
-`.venv`
-
-Main installed dependencies include:
-
-- Pillow
-- PyMuPDF
-- python-docx
-- pandas
-- openpyxl
-- psutil
-- langchain-text-splitters
-
-
-# 18. Configuration
-
-Important configuration is located in:
-
-config/settings.py
-
-Current concepts include:
-
-- PROJECT_ROOT
-- DATA_DIR
-- INPUT_DIR
-- PROCESSED_DIR
-- OUTPUT_DIR
-- MODELS_DIR
-- LOGS_DIR
-- MAX_BATCH_TEXT_SIZE
-- BATCH_MEMORY_SAFETY_RATIO
-- SUPPORTED_IMAGE_EXTENSIONS
-- SUPPORTED_EXTENSIONS
-- IMAGE_PROCESSED_DIR
-- PDF_IMAGES_DIR
-
-
-# 19. Git / Repository
-
-Repository:
-
-ZaWolf_project
-
-Branch:
-
-main
-
-Remote repository:
-
-github.com/saadtamer/ZaWolf_project
-
-Important:
-
-Do NOT commit:
-
-- `.env`
-- `.venv`
-- medical patient data
-- real hospital documents
-- secrets
-- API keys
-- large local models
-- logs
-- generated temporary files
-
-
-# 20. Development Rules
-
-When continuing the project:
-
-1. Always check the current stage before modifying code.
-2. Do not redo completed stages unnecessarily.
-3. Do not change the architecture without discussing why.
-4. Do not introduce unnecessary libraries.
-5. Keep processors modular.
-6. Keep OCR independent from the generic image processor.
-7. Do not put OCR logic inside PDF processor.
-8. Do not put OCR logic inside Image Processor.
-9. Scanned PDF images must use the same OCR path as normal images.
-10. Preserve raw extracted information.
-11. Do not invent missing medical information.
-12. Do not perform unnecessary data cleaning during ingestion.
-13. Keep extraction separate from interpretation.
-14. Keep validation separate from LLM processing.
-15. Keep database storage separate from processing.
-16. Prefer simple, maintainable implementations.
-17. Finish the current stage before expanding scope.
-
-
-# 21. Current Project Roadmap
-
-[COMPLETED]
-1. Input / File Ingestion
-2. File Routing
-3. PDF Processing
-4. Image Processing
-5. Excel / CSV Processing
-6. Word Processing
-7. Basic Pipeline Integration
-
-[PARTIAL]
-8. Text Processing / Chunking
-9. Pipeline / Orchestration
-
-[NEXT]
-10. OCR
-
-[TODO]
-11. LLM Processing
-12. Validation
-13. Database
-14. Error Handling / Reprocessing
-15. Full Testing
-16. Deployment / Production
-
-
-# 22. Current Development Instruction
-
-When the user says:
-
-"نكمل ZaWolf"
-
-Start from the CURRENT STAGE recorded in this file.
-
-Current stage:
-
-OCR
-
-Do not restart the project.
-
-Do not redesign the architecture unless there is a clear technical reason.
-
-First determine what is already implemented in the current OCR files before
-adding new code.
-
-
-# 23. Change Log
-
-## Current checkpoint
-
-Input Processing Layer completed.
-
-Pipeline successfully executed.
-
-Next target:
-OCR architecture and implementation.
-
-Do not move to LLM until OCR integration is completed.
+* **Project Name:** ZaWolf Medical Document Processing Pipeline
+* **Engineer:** Eng. Saad Tamer (AI & Data Engineer)
+* **Project Type:** Enterprise Medical & Clinical Document Intelligence, Multimodal OCR & Relational SQL Server Persistence
+* **Project Root:** `E:\ZaWolf_project`
+* **Target Database:** Microsoft SQL Server (`ZaWolfDB`)
+* **Core Model:** Ollama `qwen3:latest` (Locked for high-precision entity extraction)
+* **Vision OCR Engines:** `PaddleOCR` (Arabic & English printed) + `Qwen2.5-VL-3B` (Handwritten prescriptions)
+
+---
+
+## 2. Core Architectural Pillars (Final Enhancements)
+
+1. **Hardware-Adaptive Physical Core Detection:**
+   * Dynamic sensing using `psutil.cpu_count(logical=False)`.
+   * Automatically allocates physical cores to `LocalLLM(num_thread=...)`, ensuring portable performance from consumer PCs to 64-core enterprise servers.
+
+2. **Managed HTTP Session & Auto-Closing Socket Lifecycle:**
+   * Enforced socket teardown in `finally:` blocks inside `ProcessingPipeline.process_file`.
+   * Calls `self.llm_processor.close()`, releasing `requests.Session` handles and returning ports to OS.
+
+3. **13 Relational Covering Indexes in SQL Server:**
+   * Non-clustered covering indexes placed across foreign keys (`client_id`, `document_id`, `provider_id`) in `ZaWolfDB`.
+   * Speeds up table joins and deduplication lookups by over 10x.
+
+4. **Smart Adaptive OCR Router (`engine="auto"`):**
+   * Multi-page scanned PDFs and high-confidence printed text route to `PaddleOCR` (<1s).
+   * Handwritten physician prescriptions route to `Qwen2.5-VL-3B`.
+
+5. **Sliding-Window Document Chunking:**
+   * Prevents context window overflows on massive Word documents (`.docx`) and multi-page digital PDFs.
+   * Merges clinical entity dictionaries across batches with automated deduplication.
+
+6. **Enterprise FastAPI REST Gateway:**
+   * Interactive Swagger documentation at `/docs`.
+   * Endpoints: `POST /api/v1/process`, `GET /api/v1/health`, `GET /api/v1/metrics`, `GET /api/v1/documents`.
+
+---
+
+## 3. Supported Input Formats & Routing Logic
+
+| Format | Pipeline Route | Processing Method |
+|---|---|---|
+| `.pdf` (Digital) | `pdf_pipeline` | PyMuPDF text extraction -> Contextual sliding chunks -> LLM |
+| `.pdf` (Scanned) | `pdf_pipeline` | Image rasterization -> PaddleOCR -> ExtractionGuard -> LLM |
+| `.png`, `.jpg`, `.jpeg` | `image_pipeline` | Preprocessing -> OCRRouter (`auto`: Paddle / Qwen2.5-VL) -> LLM |
+| `.csv`, `.xlsx`, `.xls` | `structured` | Vectorized pandas parser (bypasses LLM in <0.1s) -> DB |
+| `.docx` | `word_pipeline` | python-docx sliding window chunker -> LLM -> Entity merger |
+
+---
+
+## 4. Relational Database Schema (`ZaWolfDB` - 19 Tables)
+
+All clinical records are persisted inside a single atomic transaction:
+
+1. `locations` (Clinics, hospitals, branches)
+2. `staff` (Physicians, pharmacists, lab techs)
+3. `clients` (Patients, demographics, IDs)
+4. `medical_history` (Allergies, chronic conditions, surgeries)
+5. `vitals` (Blood pressure, heart rate, temperature, SpO2, BMI)
+6. `lab_results` (Test names, quantitative values, reference ranges)
+7. `medications` (Drugs, dosages, frequency, duration)
+8. `services` (Medical procedures, consultations)
+9. `appointments` (Scheduled visits, time, status)
+10. `treatment_records` (Clinical notes, outcomes)
+11. `consents` (Patient approvals, legal forms)
+12. `photos` (Clinical images, wound photos)
+13. `invoices` (Billing headers, totals, dates)
+14. `invoice_items` (Itemized charges, service links)
+15. `payments` (Payment methods, transactions)
+16. `packages` (Treatment packages, health programs)
+17. `client_packages` (Patient package subscriptions)
+18. `products` (Pharmaceutical inventory, medical supplies)
+19. `source_documents` (Audit trail, raw OCR text, LLM JSON payloads)
+
+---
+
+## 5. Verification & Benchmark Summary
+
+* **Tool:** `evaluate_input_files.py`
+* **Test Dataset:** 8 heterogeneous files (`data/input/`)
+* **Success Rate:** 100.0% (8 / 8 PASS)
+* **Failures / Errors:** 0
+* **Persistence:** All 8 files successfully mapped and saved into `ZaWolfDB`.

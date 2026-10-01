@@ -436,6 +436,7 @@ class ProcessingPipeline:
                 continue
 
             batch_count += 1
+            print(f"       ↳ Processing Word batch {batch_count}...", flush=True)
             text_parts.append(batch_text)
 
             batch_result = self.process_text(
@@ -755,6 +756,7 @@ class ProcessingPipeline:
                 continue
 
             batch_count += 1
+            print(f"       ↳ Processing PDF batch {batch_count}...", flush=True)
 
             text_parts.append(
                 batch_text
